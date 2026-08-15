@@ -8,8 +8,12 @@ services:
       - k6
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal}
-      TEST_USER_LOGIN: ${TEST_USER_LOGIN:-}
       TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:-}
+      TURNSTILE_TOKEN: ${TURNSTILE_TOKEN:-}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-AUTH_TOKEN}
+      REFRESH_COOKIE_NAME: ${REFRESH_COOKIE_NAME:-refresh_token}
+      CATALOG_LIMIT: ${CATALOG_LIMIT:-20}
+      MAX_RESPONSE_TIME_MS: ${MAX_RESPONSE_TIME_MS:-1000}
       TARGET_ENV: ${TARGET_ENV:-local}
       API_PREFIX: ${API_PREFIX:-}
       K6_VUS: ${K6_VUS:-1}

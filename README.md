@@ -38,13 +38,21 @@ Create a local environment file:
 cp .env.example .env
 ```
 
-Edit `.env` and set the target store URL and test user credentials:
+Edit `.env` and set the target API Gateway URL, test user password, and Turnstile test token:
 
 ```env
-BASE_URL=https://shop.example.test
-TEST_USER_LOGIN=test@example.com
-TEST_USER_PASSWORD=secret
+BASE_URL=http://host.docker.internal
+TEST_USER_PASSWORD=LoadTest123!
+TURNSTILE_TOKEN=1x00000000000000000000AA
 ```
+
+The Browsing scenario does not use a single login from `.env`. Each k6 Virtual User uses its own fixture user:
+
+- VU 1 uses `load-user-001@test.local`
+- VU 2 uses `load-user-002@test.local`
+- VU 100 uses `load-user-100@test.local`
+
+The password must match users created by `LoadTestUsersFixture`.
 
 ## Running k6
 
@@ -56,21 +64,52 @@ Check the installed k6 version:
 docker compose run --rm k6 version
 ```
 
-## Running the First Scenario
+## Running Browsing
 
-Scenario implementation is intentionally not included yet. After adding a scenario file, run it by path:
+Run the Browsing scenario:
 
 ```bash
 docker compose run --rm k6 run /scripts/scenarios/browsing.js
 ```
 
-Run another scenario the same way:
+The repository is mounted into the container at `/scripts` in read-only mode.
+
+The script exports k6 `options`, so k6 reads the load profile from the scenario file. One execution of the scenario function is one user iteration. k6 repeats iterations while the configured scenario is active.
+
+The current Browsing profile uses:
+
+- `K6_VUS` - number of parallel Virtual Users.
+- `K6_DURATION` - how long k6 keeps running iterations.
+
+Example:
 
 ```bash
-docker compose run --rm k6 run /scripts/scenarios/checkout.js
+K6_VUS=10 K6_DURATION=2m docker compose run --rm k6 run /scripts/scenarios/browsing.js
 ```
 
-The repository is mounted into the container at `/scripts` in read-only mode.
+You can also edit these values in `.env`:
+
+```env
+K6_VUS=10
+K6_DURATION=2m
+```
+
+### About `docker compose up -d`
+
+Use `docker compose run --rm` as the default local command for k6 tests. A k6 run is a foreground job: it starts, executes the scenario for `K6_DURATION`, prints the summary, and exits.
+
+`docker compose up -d` is less convenient for this runner because it detaches the container and hides the k6 summary in container logs. It can be used only when you explicitly want a detached run:
+
+```bash
+docker compose --profile manual up -d k6
+docker compose --profile manual logs -f k6
+```
+
+For normal local checks, prefer:
+
+```bash
+docker compose run --rm k6 run /scripts/scenarios/browsing.js
+```
 
 ## Environment Variables
 
@@ -81,8 +120,12 @@ Default variables:
 - `BASE_URL` - target store base URL.
 - `TARGET_ENV` - logical environment name, for example `local`, `stage`, or `prod-like`.
 - `API_PREFIX` - optional API path prefix.
-- `TEST_USER_LOGIN` - login for the test user.
-- `TEST_USER_PASSWORD` - password for the test user.
+- `TEST_USER_PASSWORD` - password for fixture users `load-user-001@test.local` through `load-user-100@test.local`.
+- `TURNSTILE_TOKEN` - Turnstile test token used by the login request.
+- `AUTH_COOKIE_NAME` - authentication cookie name expected after login and refresh.
+- `REFRESH_COOKIE_NAME` - refresh cookie name set by the API Gateway.
+- `CATALOG_LIMIT` - number of catalog items requested for random product selection.
+- `MAX_RESPONSE_TIME_MS` - response time check limit used by HTTP checks and thresholds.
 - `K6_VUS` - default virtual user count for simple runs.
 - `K6_DURATION` - default duration for simple runs.
 - `K6_SCENARIO` - logical scenario name.
