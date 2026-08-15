@@ -1,0 +1,23 @@
+services:
+  k6:
+    image: grafana/k6:latest
+    profiles:
+      - manual
+    working_dir: /scripts
+    entrypoint:
+      - k6
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal}
+      TEST_USER_LOGIN: ${TEST_USER_LOGIN:-}
+      TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:-}
+      TARGET_ENV: ${TARGET_ENV:-local}
+      API_PREFIX: ${API_PREFIX:-}
+      K6_VUS: ${K6_VUS:-1}
+      K6_DURATION: ${K6_DURATION:-30s}
+      K6_SCENARIO: ${K6_SCENARIO:-browsing}
+      K6_TAG_ENV: ${K6_TAG_ENV:-local}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30s}
+      THINK_TIME_MIN: ${THINK_TIME_MIN:-1}
+      THINK_TIME_MAX: ${THINK_TIME_MAX:-3}
+    volumes:
+      - ./:/scripts:ro
