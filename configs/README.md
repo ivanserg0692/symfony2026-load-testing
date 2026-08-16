@@ -1,8 +1,8 @@
 # Configs
 
-Reusable k6 options and load profiles will live here.
+Reusable k6 options and load profiles live here.
 
-Examples:
+Profiles:
 
 - smoke profile
 - browsing profile

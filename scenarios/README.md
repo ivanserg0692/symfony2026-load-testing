@@ -1,8 +1,8 @@
 # Scenarios
 
-k6 entrypoint scripts will live here.
+k6 entrypoint scripts live here.
 
-Planned scenario files:
+Scenario files:
 
 - `browsing.js`
 - `shopping.js`

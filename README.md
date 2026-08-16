@@ -46,7 +46,7 @@ TEST_USER_PASSWORD=LoadTest123!
 TURNSTILE_TOKEN=1x00000000000000000000AA
 ```
 
-The Browsing scenario does not use a single login from `.env`. Each k6 Virtual User uses its own fixture user:
+The Browsing, Shopping, and Checkout scenarios do not use a single login from `.env`. Each k6 Virtual User uses its own fixture user:
 
 - VU 1 uses `load-user-001@test.local`
 - VU 2 uses `load-user-002@test.local`
@@ -64,7 +64,7 @@ Check the installed k6 version:
 docker compose run --rm k6 version
 ```
 
-## Running Browsing
+## Running Scenarios
 
 Run the Browsing scenario:
 
@@ -72,19 +72,39 @@ Run the Browsing scenario:
 docker compose run --rm k6 run /scripts/scenarios/browsing.js
 ```
 
+Run the Shopping scenario:
+
+```bash
+docker compose run --rm k6 run /scripts/scenarios/shopping.js
+```
+
+Run the Checkout scenario:
+
+```bash
+docker compose run --rm k6 run /scripts/scenarios/checkout.js
+```
+
+Run the Mixed scenario:
+
+```bash
+docker compose run --rm k6 run /scripts/scenarios/mixed.js
+```
+
+The Mixed scenario models the default traffic split as 75% Browsing, 20% Shopping, and 5% Checkout.
+
 The repository is mounted into the container at `/scripts` in read-only mode.
 
 The script exports k6 `options`, so k6 reads the load profile from the scenario file. One execution of the scenario function is one user iteration. k6 repeats iterations while the configured scenario is active.
 
-The current Browsing profile uses:
+The current scenario profiles use:
 
 - `K6_VUS` - number of parallel Virtual Users.
 - `K6_DURATION` - how long k6 keeps running iterations.
 
-Example:
+Example with a shorter Checkout run:
 
 ```bash
-K6_VUS=10 K6_DURATION=2m docker compose run --rm k6 run /scripts/scenarios/browsing.js
+K6_VUS=10 K6_DURATION=2m docker compose run --rm k6 run /scripts/scenarios/checkout.js
 ```
 
 You can also edit these values in `.env`:
@@ -108,7 +128,7 @@ docker compose --profile manual logs -f k6
 For normal local checks, prefer:
 
 ```bash
-docker compose run --rm k6 run /scripts/scenarios/browsing.js
+docker compose run --rm k6 run /scripts/scenarios/checkout.js
 ```
 
 ## Environment Variables
@@ -162,7 +182,7 @@ Recommended names:
 
 Keep common code in `lib/`, input data in `data/`, and reusable load profiles in `configs/`.
 
-The planned `mixed` scenario should later model the `75/20/5` traffic split:
+The `mixed` scenario models the `75/20/5` traffic split:
 
 - 75% browsing
 - 20% shopping

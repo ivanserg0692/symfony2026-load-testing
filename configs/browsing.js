@@ -1,21 +1,7 @@
-import { config } from '../lib/config.js';
+import { buildScenarioOptions } from '../lib/options.js';
 
-export const browsingOptions = {
-  scenarios: {
-    browsing: {
-      executor: 'constant-vus',
-      vus: config.vus,
-      duration: config.duration,
-      gracefulStop: '30s',
-      tags: {
-        env: config.tagEnv,
-        scenario: 'browsing',
-      },
-    },
-  },
-  thresholds: {
-    'http_req_failed{scenario:browsing}': ['rate<0.01'],
-    'http_req_duration{scenario:browsing}': [`p(95)<${config.responseTimeLimitMs}`],
-  },
+export const browsingOptions = buildScenarioOptions({
+  scenarioName: 'browsing',
   userAgent: 'k6-browsing-load-test/1.0',
-};
+  thresholdTag: 'browsing',
+});
