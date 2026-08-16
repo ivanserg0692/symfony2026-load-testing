@@ -35,10 +35,10 @@ Requirements:
 Create a local environment file:
 
 ```bash
-cp .env.example .env
+cp load-testing/.env.example load-testing/.env
 ```
 
-Edit `.env` and set the target API Gateway URL, test user password, and Turnstile test token:
+Edit `load-testing/.env` and set the target API Gateway URL, test user password, and Turnstile test token:
 
 ```env
 BASE_URL=http://host.docker.internal
@@ -61,33 +61,55 @@ The k6 service uses the official `grafana/k6` image and is meant to be started m
 Check the installed k6 version:
 
 ```bash
-docker compose run --rm k6 version
+docker compose -f load-testing/docker-compose.yml run --rm k6 version
 ```
 
 ## Running Scenarios
 
+Run the scenario selected by `LOAD_TEST_SCENARIO`:
+
+```bash
+docker compose -f load-testing/docker-compose.yml run --rm k6
+```
+
+Set the selected scenario in `load-testing/.env`:
+
+```env
+LOAD_TEST_SCENARIO=mixed
+```
+
+Supported values are `browsing`, `shopping`, `checkout`, and `mixed`.
+
+For a one-off run, pass `LOAD_TEST_SCENARIO` before the Docker Compose command so Compose can use it while building the k6 command:
+
+```bash
+LOAD_TEST_SCENARIO=checkout docker compose -f load-testing/docker-compose.yml run --rm k6
+```
+
+You can also run a script directly by passing its path.
+
 Run the Browsing scenario:
 
 ```bash
-docker compose run --rm k6 run /scripts/scenarios/browsing.js
+docker compose -f load-testing/docker-compose.yml run --rm k6 run /scripts/scenarios/browsing.js
 ```
 
 Run the Shopping scenario:
 
 ```bash
-docker compose run --rm k6 run /scripts/scenarios/shopping.js
+docker compose -f load-testing/docker-compose.yml run --rm k6 run /scripts/scenarios/shopping.js
 ```
 
 Run the Checkout scenario:
 
 ```bash
-docker compose run --rm k6 run /scripts/scenarios/checkout.js
+docker compose -f load-testing/docker-compose.yml run --rm k6 run /scripts/scenarios/checkout.js
 ```
 
 Run the Mixed scenario:
 
 ```bash
-docker compose run --rm k6 run /scripts/scenarios/mixed.js
+docker compose -f load-testing/docker-compose.yml run --rm k6 run /scripts/scenarios/mixed.js
 ```
 
 The Mixed scenario models the default traffic split as 75% Browsing, 20% Shopping, and 5% Checkout.
@@ -104,36 +126,37 @@ The current scenario profiles use:
 Example with a shorter Checkout run:
 
 ```bash
-K6_VUS=10 K6_DURATION=2m docker compose run --rm k6 run /scripts/scenarios/checkout.js
+LOAD_TEST_SCENARIO=checkout K6_VUS=10 K6_DURATION=2m docker compose -f load-testing/docker-compose.yml run --rm k6
 ```
 
-You can also edit these values in `.env`:
+You can also edit these values in `load-testing/.env`:
 
 ```env
+LOAD_TEST_SCENARIO=checkout
 K6_VUS=10
 K6_DURATION=2m
 ```
 
-### About `docker compose up -d`
+### About `docker compose -f load-testing/docker-compose.yml up -d`
 
-Use `docker compose run --rm` as the default local command for k6 tests. A k6 run is a foreground job: it starts, executes the scenario for `K6_DURATION`, prints the summary, and exits.
+Use `docker compose -f load-testing/docker-compose.yml run --rm` as the default local command for k6 tests. A k6 run is a foreground job: it starts, executes the scenario for `K6_DURATION`, prints the summary, and exits.
 
-`docker compose up -d` is less convenient for this runner because it detaches the container and hides the k6 summary in container logs. It can be used only when you explicitly want a detached run:
+`docker compose -f load-testing/docker-compose.yml up -d` is less convenient for this runner because it detaches the container and hides the k6 summary in container logs. It can be used only when you explicitly want a detached run:
 
 ```bash
-docker compose --profile manual up -d k6
-docker compose --profile manual logs -f k6
+docker compose -f load-testing/docker-compose.yml --profile manual up -d k6
+docker compose -f load-testing/docker-compose.yml --profile manual logs -f k6
 ```
 
 For normal local checks, prefer:
 
 ```bash
-docker compose run --rm k6 run /scripts/scenarios/checkout.js
+docker compose -f load-testing/docker-compose.yml run --rm k6
 ```
 
 ## Environment Variables
 
-Variables from `.env` are passed into the k6 container through `docker-compose.yml`.
+Variables from `load-testing/.env` are passed into the k6 container through `docker-compose.yml`.
 
 Default variables:
 
@@ -148,7 +171,7 @@ Default variables:
 - `MAX_RESPONSE_TIME_MS` - response time check limit used by HTTP checks and thresholds.
 - `K6_VUS` - default virtual user count for simple runs.
 - `K6_DURATION` - default duration for simple runs.
-- `K6_SCENARIO` - logical scenario name.
+- `LOAD_TEST_SCENARIO` - scenario entrypoint used by the default Docker Compose command.
 - `K6_TAG_ENV` - environment tag for k6 metrics.
 - `HTTP_TIMEOUT` - default HTTP timeout.
 - `THINK_TIME_MIN` - lower bound for simulated user pauses.
@@ -157,13 +180,13 @@ Default variables:
 You can override variables for a single run:
 
 ```bash
-docker compose run --rm -e BASE_URL=https://stage.example.test -e K6_VUS=10 k6 run /scripts/scenarios/browsing.js
+LOAD_TEST_SCENARIO=browsing BASE_URL=https://stage.example.test K6_VUS=10 docker compose -f load-testing/docker-compose.yml run --rm k6
 ```
 
 You can also pass k6 variables directly:
 
 ```bash
-docker compose run --rm k6 run -e BASE_URL=https://stage.example.test /scripts/scenarios/browsing.js
+docker compose -f load-testing/docker-compose.yml run --rm k6 run -e BASE_URL=https://stage.example.test /scripts/scenarios/browsing.js
 ```
 
 ## Adding Scenarios
