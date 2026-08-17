@@ -120,26 +120,26 @@ The script exports k6 `options`, so k6 reads the load profile from the scenario 
 
 The current scenario profiles use:
 
-- `K6_VUS` - number of parallel Virtual Users.
-- `K6_DURATION` - how long k6 keeps running iterations.
+- `LOAD_TEST_VUS` - number of parallel Virtual Users.
+- `LOAD_TEST_DURATION` - how long k6 keeps running iterations.
 
 Example with a shorter Checkout run:
 
 ```bash
-LOAD_TEST_SCENARIO=checkout K6_VUS=10 K6_DURATION=2m docker compose -f load-testing/docker-compose.yml run --rm k6
+LOAD_TEST_SCENARIO=checkout LOAD_TEST_VUS=10 LOAD_TEST_DURATION=2m docker compose -f load-testing/docker-compose.yml run --rm k6
 ```
 
 You can also edit these values in `load-testing/.env`:
 
 ```env
 LOAD_TEST_SCENARIO=checkout
-K6_VUS=10
-K6_DURATION=2m
+LOAD_TEST_VUS=10
+LOAD_TEST_DURATION=2m
 ```
 
 ### About `docker compose -f load-testing/docker-compose.yml up -d`
 
-Use `docker compose -f load-testing/docker-compose.yml run --rm` as the default local command for k6 tests. A k6 run is a foreground job: it starts, executes the scenario for `K6_DURATION`, prints the summary, and exits.
+Use `docker compose -f load-testing/docker-compose.yml run --rm` as the default local command for k6 tests. A k6 run is a foreground job: it starts, executes the scenario for `LOAD_TEST_DURATION`, prints the summary, and exits.
 
 `docker compose -f load-testing/docker-compose.yml up -d` is less convenient for this runner because it detaches the container and hides the k6 summary in container logs. It can be used only when you explicitly want a detached run:
 
@@ -169,8 +169,8 @@ Default variables:
 - `REFRESH_COOKIE_NAME` - refresh cookie name set by the API Gateway.
 - `CATALOG_LIMIT` - number of catalog items requested for random product selection.
 - `MAX_RESPONSE_TIME_MS` - response time check limit used by HTTP checks and thresholds.
-- `K6_VUS` - default virtual user count for simple runs.
-- `K6_DURATION` - default duration for simple runs.
+- `LOAD_TEST_VUS` - default virtual user count for simple runs.
+- `LOAD_TEST_DURATION` - default duration for simple runs.
 - `LOAD_TEST_SCENARIO` - scenario entrypoint used by the default Docker Compose command.
 - `K6_TAG_ENV` - environment tag for k6 metrics.
 - `HTTP_TIMEOUT` - default HTTP timeout.
@@ -180,7 +180,7 @@ Default variables:
 You can override variables for a single run:
 
 ```bash
-LOAD_TEST_SCENARIO=browsing BASE_URL=https://stage.example.test K6_VUS=10 docker compose -f load-testing/docker-compose.yml run --rm k6
+LOAD_TEST_SCENARIO=browsing BASE_URL=https://stage.example.test LOAD_TEST_VUS=10 docker compose -f load-testing/docker-compose.yml run --rm k6
 ```
 
 You can also pass k6 variables directly:
