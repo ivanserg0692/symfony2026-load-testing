@@ -6,9 +6,10 @@ function usage(): void
 {
     fwrite(STDERR, <<<'TEXT'
 Usage:
-  php profiler-tokens.php --url=<url> [--method=GET] [--from=<datetime>] [--to=<datetime>] [--status=200] [--type=request] [--format=list|php]
+  php profiler-tokens.php [--url=<url>] [--method=GET] [--from=<datetime>] [--to=<datetime>] [--status=200] [--type=request] [--format=list|php]
 
 Examples:
+  php profiler-tokens.php --from=2026-08-17T09:25:20Z --to=2026-08-17T09:25:55Z
   php profiler-tokens.php --url=http://host.docker.internal/api/catalog/sections --from=2026-08-17T09:25:20Z --to=2026-08-17T09:25:55Z
   php profiler-tokens.php --url=http://host.docker.internal/api/catalog/sections --format=php
 
@@ -59,12 +60,6 @@ $format = option('format', 'list');
 $from = timestamp(option('from'), 'from');
 $to = timestamp(option('to'), 'to');
 
-if ($url === null || $url === '') {
-    usage();
-    fwrite(STDERR, "Missing required --url option.\n");
-    exit(2);
-}
-
 if (!in_array($format, ['list', 'php'], true)) {
     fwrite(STDERR, "Invalid --format value. Expected list or php.\n");
     exit(2);
@@ -95,7 +90,7 @@ while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
         continue;
     }
 
-    if ($rowUrl !== $url) {
+    if ($url !== null && $url !== '' && $rowUrl !== $url) {
         continue;
     }
 

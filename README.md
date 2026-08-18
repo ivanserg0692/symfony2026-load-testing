@@ -199,6 +199,14 @@ docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalo
   --url=http://host.docker.internal/api/catalog/sections
 ```
 
+The `--url` filter is optional. To collect every request token from a UTC time window, omit it:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-tokens.php \
+  --from=2026-08-17T09:25:20Z \
+  --to=2026-08-17T09:25:55Z
+```
+
 For a more precise search, filter the profiler index structurally by method, URL, and timestamp range:
 
 ```bash
@@ -238,6 +246,28 @@ Profiler files are gzip-compressed PHP serialized data, so read them through PHP
 docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-durations.php df42f8
 ```
 
+Run profiler tools in the Symfony CLI container that owns the profiler data. In the examples above, `catalog-cli` is used because the request was handled by the catalog service. For another service, replace the service name and keep the same tools mount:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro <service-cli> php /load-testing-tools/profiler-durations.php <token>
+```
+
+For example, use the order service container when investigating an order profiler token:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro order-cli php /load-testing-tools/profiler-durations.php df42f8
+```
+
+Use `--profiler-dir` when the service writes profiler files outside the default `var/cache/dev/profiler` directory:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro <service-cli> php /load-testing-tools/profiler-durations.php \
+  --profiler-dir=var/cache/prod/profiler \
+  <token>
+```
+
+`profiler-durations.php` boots the Symfony kernel inside the selected container and reads profiles through Symfony's profiler storage. The `sql_ms` column therefore comes from the profiler collector of that specific service.
+
 Compare several profiler tokens by Symfony runtime. By default, the output is sorted by Symfony duration descending:
 
 ```bash
@@ -255,6 +285,17 @@ docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalo
   --to=2026-08-17T09:25:55Z \
   | docker compose run -T --rm -i -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-durations.php
 ```
+
+To inspect every request in a UTC time window and put the largest SQL time first, omit `--url` and sort durations by SQL time:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-tokens.php \
+  --from=2026-08-17T09:25:20Z \
+  --to=2026-08-17T09:25:55Z \
+  | docker compose run -T --rm -i -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-durations.php --sort=sql
+```
+
+`--sort=sql` sorts by `sql_ms` descending. Run the pipeline in the Symfony CLI container that owns the profiler data, for example `catalog-cli` for catalog tokens or `order-cli` for order tokens.
 
 Interpret the timings separately:
 
