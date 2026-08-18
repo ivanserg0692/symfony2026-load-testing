@@ -15,7 +15,8 @@ This repository contains only the runner setup and project structure. The store,
 ├── scenarios/
 ├── lib/
 ├── data/
-└── configs/
+├── configs/
+└── tools/
 ```
 
 ## Directories
@@ -24,6 +25,7 @@ This repository contains only the runner setup and project structure. The store,
 - `lib/` stores reusable JavaScript helpers shared by scenarios, such as HTTP clients, authentication helpers, checks, and request builders.
 - `data/` stores test data in JSON or CSV format, such as users, products, carts, and checkout inputs.
 - `configs/` stores reusable k6 options and load profiles so scenario files stay focused on user behavior.
+- `tools/` stores local debugging utilities that are not used by k6 scenarios.
 
 ## Installation
 
@@ -153,6 +155,114 @@ For normal local checks, prefer:
 ```bash
 docker compose -f load-testing/docker-compose.yml run --rm k6
 ```
+
+
+## Debugging Slow Requests
+
+When a k6 check reports a slow request, use the request URL and profiler token from the k6 error output to connect external latency with Symfony runtime.
+
+The usual investigation chain is:
+
+```text
+k6 error -> API Gateway log -> X-Debug-Token -> Symfony profiler index -> profiler file -> Symfony runtime
+```
+
+Find slow API Gateway requests for one endpoint in a specific UTC time window:
+
+```bash
+docker compose logs api-gateway \
+  --since '2026-08-17T09:25:20Z' \
+  --until '2026-08-17T09:25:55Z' \
+  | grep 'request_uri="/api/v1/catalog/sections' \
+  | perl -ne 'if (/time="([^"]+)".*request_time="([^"]+)".*upstream_response_time="([^"]+)".*sent_x_debug_token="([^"]*)"/) { print "$2s upstream=$3s token=$4 time=$1\n" }' \
+  | sort -nr
+```
+
+This shows the total gateway request time, upstream response time, profiler token, and timestamp. The `sent_x_debug_token` value is the Symfony profiler token returned to the client.
+
+Check that a profiler token belongs to the expected Symfony request:
+
+```bash
+docker compose exec catalog-cli sh -lc 'grep "102397" var/cache/dev/profiler/index.csv'
+```
+
+The profiler index row contains the token, client IP, method, URL, timestamp, status, request type, and error flag. A matching row looks like this:
+
+```csv
+102397,172.18.0.22,GET,http://host.docker.internal/api/catalog/sections,1786958728,,200,request,0
+```
+
+Find all profiler tokens for the same endpoint:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-tokens.php \
+  --url=http://host.docker.internal/api/catalog/sections
+```
+
+For a more precise search, filter the profiler index structurally by method, URL, and timestamp range:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-tokens.php \
+  --method=GET \
+  --url=http://host.docker.internal/api/catalog/sections \
+  --from=2026-08-17T09:25:20Z \
+  --to=2026-08-17T09:25:55Z
+```
+
+Use `--format=php` when you need a ready PHP array:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-tokens.php \
+  --method=GET \
+  --url=http://host.docker.internal/api/catalog/sections \
+  --from=2026-08-17T09:25:20Z \
+  --to=2026-08-17T09:25:55Z \
+  --format=php
+```
+
+Find the physical profiler file for a token:
+
+```bash
+docker compose exec catalog-cli sh -lc 'find var/cache/dev/profiler -name df42f8 -type f'
+```
+
+Symfony stores profiler files under `var/cache/dev/profiler/<first-2-token-chars>/<next-2-token-chars>/<token>`. For example:
+
+```text
+var/cache/dev/profiler/df/42/df42f8
+```
+
+Profiler files are gzip-compressed PHP serialized data, so read them through PHP instead of `cat` or `grep`:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-durations.php df42f8
+```
+
+Compare several profiler tokens by Symfony runtime. By default, the output is sorted by Symfony duration descending:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-durations.php \
+  df42f8 102397 895579 131941
+```
+
+You can pipe tokens from `profiler-tokens.php` directly into `profiler-durations.php`:
+
+```bash
+docker compose run -T --rm -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-tokens.php \
+  --method=GET \
+  --url=http://host.docker.internal/api/catalog/sections \
+  --from=2026-08-17T09:25:20Z \
+  --to=2026-08-17T09:25:55Z \
+  | docker compose run -T --rm -i -v ./load-testing/tools:/load-testing-tools:ro catalog-cli php /load-testing-tools/profiler-durations.php
+```
+
+Interpret the timings separately:
+
+- k6 response duration measures the client-observed request duration.
+- API Gateway `request_time` measures the full gateway request time.
+- API Gateway `upstream_response_time` measures how long the upstream service took from the gateway perspective.
+- Symfony profiler `time` duration measures execution inside Symfony.
+- Doctrine SQL time can be fast even when the request is slow, for example when waiting for a database connection, waiting in the PHP runtime, or spending time in serialization.
 
 ## Environment Variables
 
