@@ -96,11 +96,11 @@ function indexRows(string $indexPath): array
 
     $rows = [];
     while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-        if (count($row) < 9) {
+        if (count($row) < 8) {
             continue;
         }
 
-        [$token, $ip, $method, $url, $timestamp, , $status, $type, $error] = $row;
+        [$token, $ip, $method, $url, $timestamp, , $status, $type] = $row;
         $rows[$token] = [
             'ip' => $ip,
             'method' => $method,
@@ -108,7 +108,7 @@ function indexRows(string $indexPath): array
             'timestamp' => (int) $timestamp,
             'status' => $status,
             'type' => $type,
-            'error' => $error,
+            'error' => $row[8] ?? '',
         ];
     }
 
@@ -344,4 +344,3 @@ foreach ($rows as $row) {
         $row['url']
     );
 }
-

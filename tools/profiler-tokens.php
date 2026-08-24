@@ -79,7 +79,7 @@ if ($handle === false) {
 $tokens = [];
 
 while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-    if (count($row) < 9) {
+    if (count($row) < 8) {
         continue;
     }
 
@@ -128,4 +128,3 @@ if ($format === 'php') {
 foreach ($tokens as $token) {
     echo $token, PHP_EOL;
 }
-
