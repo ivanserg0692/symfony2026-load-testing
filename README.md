@@ -167,6 +167,89 @@ The usual investigation chain is:
 k6 error -> API Gateway log -> X-Debug-Token -> Symfony profiler index -> profiler file -> Symfony runtime
 ```
 
+### API Gateway Log Analysis in Development
+
+Activate the development Docker Compose context in the current terminal before reading application logs:
+
+```bash
+set -a
+. ./.env
+. ./.env.dev
+set +a
+```
+
+Repeat the activation in every new terminal. The k6 runner remains an exception and continues to use its dedicated `load-testing/docker-compose.yml` file.
+
+Use `nginx-latency-summary.pl` to aggregate API Gateway latency by HTTP method and request path. The script reports request count, average latency, p95, and maximum latency. Query strings are removed when requests are grouped. Results are sorted by p95 from slowest to fastest by default:
+
+```bash
+docker compose logs api-gateway \
+  --since '2026-08-25T10:08:54.019Z' \
+  --until '2026-08-25T10:15:00.588Z' \
+  | perl load-testing/tools/nginx-latency-summary.pl
+```
+
+Change the sort field with `--sort=p95`, `--sort=avg`, `--sort=max`, `--sort=count`, or `--sort=endpoint`. Add `--ascending` to reverse the default descending order:
+
+```bash
+docker compose logs api-gateway \
+  --since '2026-08-25T10:08:54.019Z' \
+  --until '2026-08-25T10:15:00.588Z' \
+  | perl load-testing/tools/nginx-latency-summary.pl --sort=max
+```
+
+Filter the aggregation to one method and exact path. Query parameters do not affect the path comparison:
+
+```bash
+docker compose logs api-gateway \
+  --since '2026-08-25T10:08:54.019Z' \
+  --until '2026-08-25T10:15:00.588Z' \
+  | perl load-testing/tools/nginx-latency-summary.pl \
+      --method=GET \
+      --path=/api/v1/catalog/elements
+```
+
+Use `nginx-request-details.pl` to list individual requests to one endpoint. It prints the UTC timestamp, status, full API Gateway request time, final upstream response time, Symfony profiler token, and original URI. Results are sorted by full request time from slowest to fastest by default:
+
+```bash
+docker compose logs api-gateway \
+  --since '2026-08-25T10:08:54.019Z' \
+  --until '2026-08-25T10:15:00.588Z' \
+  | perl load-testing/tools/nginx-request-details.pl \
+      --method=GET \
+      --path=/api/v1/catalog/elements \
+      --limit=50
+```
+
+The optional `--limit` is applied after sorting, so this example returns the 50 slowest matching requests.
+
+Sort chronologically from oldest to newest:
+
+```bash
+docker compose logs api-gateway \
+  --since '2026-08-25T10:08:54.019Z' \
+  --until '2026-08-25T10:15:00.588Z' \
+  | perl load-testing/tools/nginx-request-details.pl \
+      --method=GET \
+      --path=/api/v1/catalog/elements \
+      --sort=time \
+      --ascending
+```
+
+Supported detailed sort fields are `request`, `upstream`, `time`, and `status`. To output only available profiler hashes, use `--format=tokens`:
+
+```bash
+docker compose logs api-gateway \
+  --since '2026-08-25T10:08:54.019Z' \
+  --until '2026-08-25T10:15:00.588Z' \
+  | perl load-testing/tools/nginx-request-details.pl \
+      --method=GET \
+      --path=/api/v1/catalog/elements \
+      --format=tokens
+```
+
+Both scripts parse the structured fields from the API Gateway access log. If no rows match, verify the active Docker environment, UTC interval, public path, and HTTP method. Use each script's `--help` option for a compact option reference.
+
 Find slow API Gateway requests for one endpoint in a specific UTC time window:
 
 ```bash
