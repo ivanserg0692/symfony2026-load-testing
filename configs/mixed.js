@@ -46,11 +46,17 @@ function mixedScenario({ exec, name, vus }) {
 }
 
 function mixedThresholds(scenarios) {
-  return Object.keys(scenarios).reduce((thresholds, scenarioName) => ({
+  const thresholds = Object.keys(scenarios).reduce((thresholds, scenarioName) => ({
     ...thresholds,
     [`http_req_failed{scenario:${scenarioName}}`]: ['rate<0.01'],
     [`http_req_duration{scenario:${scenarioName}}`]: [`p(95)<${config.responseTimeLimitMs}`],
   }), {});
+
+  if (scenarios.checkout) {
+    thresholds.order_create_unexpected_conflicts = ['rate==0'];
+  }
+
+  return thresholds;
 }
 
 const mixedScenarios = Object.fromEntries(
