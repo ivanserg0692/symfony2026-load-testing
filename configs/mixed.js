@@ -67,6 +67,7 @@ const mixedScenarios = Object.fromEntries(
 
 export const mixedOptions = {
   scenarios: mixedScenarios,
+  setupTimeout: config.setupTimeout,
   thresholds: mixedThresholds(mixedScenarios),
   userAgent: 'k6-mixed-load-test/1.0',
 };

@@ -1,5 +1,5 @@
 import { mixedOptions } from '../configs/mixed.js';
-import { login } from '../lib/auth.js';
+import { getVuSession, initializeSessions } from '../lib/auth.js';
 import { runBrowsingFlow, runCheckoutFlow, runShoppingFlow } from '../lib/flows.js';
 
 export const options = mixedOptions;
@@ -8,23 +8,25 @@ let browsingSession = null;
 let shoppingSession = null;
 let checkoutSession = null;
 
-function ensureSession(currentSession) {
-  // k6 runs this module separately for each VU, so the session is reused only
-  // inside one virtual user and the login request is not repeated every iteration.
-  return currentSession === null ? login() : currentSession;
+export function setup() {
+  return initializeSessions();
 }
 
-export function browsing() {
-  browsingSession = ensureSession(browsingSession);
+function ensureSession(currentSession, setupData) {
+  return currentSession === null ? getVuSession(setupData) : currentSession;
+}
+
+export function browsing(setupData) {
+  browsingSession = ensureSession(browsingSession, setupData);
   runBrowsingFlow(browsingSession);
 }
 
-export function shopping() {
-  shoppingSession = ensureSession(shoppingSession);
+export function shopping(setupData) {
+  shoppingSession = ensureSession(shoppingSession, setupData);
   runShoppingFlow(shoppingSession);
 }
 
-export function checkout() {
-  checkoutSession = ensureSession(checkoutSession);
+export function checkout(setupData) {
+  checkoutSession = ensureSession(checkoutSession, setupData);
   runCheckoutFlow(checkoutSession);
 }
