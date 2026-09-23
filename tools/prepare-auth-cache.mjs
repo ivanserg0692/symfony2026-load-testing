@@ -5,6 +5,7 @@ const CACHE_VERSION = 1;
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const CACHE_REUSE_MARGIN_MS = 60 * 1000;
 const MAX_LOAD_TEST_USERS = 1000;
+const AUTHORIZATION_BATCH_SIZE = 50;
 
 function requiredEnvironmentValue(name) {
   const value = process.env[name];
@@ -313,20 +314,26 @@ async function main() {
   const createdAt = canReuseExistingCache
     ? existingCache.createdAt
     : new Date().toISOString();
-  const progressStep = Math.max(1, Math.ceil(vus / 20));
 
   if (sessions.length > 0) {
     console.log(`auth cache: extending ${sessions.length} existing sessions to ${vus}`);
   }
 
-  for (let index = sessions.length; index < vus; index += 1) {
-    sessions.push(await login(index + 1, settings));
+  for (
+    let batchStart = sessions.length;
+    batchStart < vus;
+    batchStart += AUTHORIZATION_BATCH_SIZE
+  ) {
+    const batchEnd = Math.min(batchStart + AUTHORIZATION_BATCH_SIZE, vus);
+    const batch = await Promise.all(
+      Array.from(
+        { length: batchEnd - batchStart },
+        (_, offset) => login(batchStart + offset + 1, settings),
+      ),
+    );
 
-    const authorizedUsers = index + 1;
-
-    if (authorizedUsers % progressStep === 0 || authorizedUsers === vus) {
-      console.log(`auth cache authorization: ${authorizedUsers}/${vus} users`);
-    }
+    sessions.push(...batch);
+    console.log(`auth cache authorization: ${sessions.length}/${vus} users`);
   }
 
   await writeCache(settings.cacheFile, {
