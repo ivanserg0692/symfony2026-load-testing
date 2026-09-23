@@ -216,8 +216,7 @@ function reusableCache(cache, settings, now) {
     && cache.apiPrefix === settings.apiPrefix
     && cache.authCookieName === settings.authCookieName
     && cache.refreshCookieName === settings.refreshCookieName
-    && cache.sessions.length >= settings.vus
-    && cache.sessions.slice(0, settings.vus).every((session, index) => (
+    && cache.sessions.every((session, index) => (
       validSession(session, index, settings)
     ));
 }
@@ -293,7 +292,9 @@ async function main() {
   const now = Date.now();
   const existingCache = await readCache(settings.cacheFile);
 
-  if (reusableCache(existingCache, settings, now)) {
+  const canReuseExistingCache = reusableCache(existingCache, settings, now);
+
+  if (canReuseExistingCache && existingCache.sessions.length >= vus) {
     await assignCacheOwnership(
       settings.cacheFile,
       settings.cacheOwnerUid,
@@ -303,16 +304,22 @@ async function main() {
     return;
   }
 
-  if (existingCache !== null) {
+  if (existingCache !== null && !canReuseExistingCache) {
     await rm(settings.cacheFile, { force: true });
     console.log('auth cache: removed expired or incompatible cache');
   }
 
-  const sessions = [];
-  const createdAt = new Date().toISOString();
+  const sessions = canReuseExistingCache ? [...existingCache.sessions] : [];
+  const createdAt = canReuseExistingCache
+    ? existingCache.createdAt
+    : new Date().toISOString();
   const progressStep = Math.max(1, Math.ceil(vus / 20));
 
-  for (let index = 0; index < vus; index += 1) {
+  if (sessions.length > 0) {
+    console.log(`auth cache: extending ${sessions.length} existing sessions to ${vus}`);
+  }
+
+  for (let index = sessions.length; index < vus; index += 1) {
     sessions.push(await login(index + 1, settings));
 
     const authorizedUsers = index + 1;
