@@ -1,4 +1,30 @@
 services:
+  auth-cache:
+    image: node:20-alpine
+    profiles:
+      - manual
+    working_dir: /scripts
+    entrypoint:
+      - node
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal}
+      REQUEST_ORIGIN: ${REQUEST_ORIGIN:-}
+      TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:-}
+      TURNSTILE_TOKEN: ${TURNSTILE_TOKEN:-}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-AUTH_TOKEN}
+      REFRESH_COOKIE_NAME: ${REFRESH_COOKIE_NAME:-refresh_token}
+      API_PREFIX: ${API_PREFIX:-}
+      LOAD_TEST_VUS: ${LOAD_TEST_VUS:-1}
+      LOAD_TEST_DURATION: ${LOAD_TEST_DURATION:-30s}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30s}
+      AUTH_SESSION_CACHE_FILE: /scripts/.cache/auth-sessions.json
+      AUTH_CACHE_OWNER_UID: ${AUTH_CACHE_OWNER_UID:-}
+      AUTH_CACHE_OWNER_GID: ${AUTH_CACHE_OWNER_GID:-}
+    command:
+      - /scripts/tools/prepare-auth-cache.mjs
+    volumes:
+      - ./:/scripts
+
   k6:
     image: grafana/k6:latest
     profiles:
@@ -9,8 +35,6 @@ services:
     environment:
       BASE_URL: ${BASE_URL:-http://host.docker.internal}
       REQUEST_ORIGIN: ${REQUEST_ORIGIN:-}
-      TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:-}
-      TURNSTILE_TOKEN: ${TURNSTILE_TOKEN:-}
       AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-AUTH_TOKEN}
       REFRESH_COOKIE_NAME: ${REFRESH_COOKIE_NAME:-refresh_token}
       CATALOG_LIMIT: ${CATALOG_LIMIT:-20}
@@ -24,6 +48,7 @@ services:
       HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30s}
       THINK_TIME_MIN: ${THINK_TIME_MIN:-1}
       THINK_TIME_MAX: ${THINK_TIME_MAX:-3}
+      AUTH_SESSION_CACHE_FILE: /scripts/.cache/auth-sessions.json
     command:
       - run
       - /scripts/scenarios/${LOAD_TEST_SCENARIO:-browsing}.js

@@ -1,0 +1,7 @@
+{
+  "name": "load-testing",
+  "private": true,
+  "scripts": {
+    "start": "./run.sh"
+  }
+}
